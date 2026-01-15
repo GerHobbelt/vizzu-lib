@@ -9,6 +9,31 @@
 
 #include "auto_name.h"
 
+#ifdef _MSC_VER
+
+#if _MSC_VER >= 1300
+#define VIZZU_NO_INLINE __declspec(noinline)
+#else
+#define VIZZU_NO_INLINE
+#endif
+
+#define VIZZU_FORCE_INLINE __forceinline
+
+#else //  _MSC_VER
+
+#if (defined(__GNUC__) && (__GNUC__ >= 4))            \
+    || (defined(__clang__) && (__clang_major__ >= 4)) \
+    || defined(__INTEL_COMPILER) || defined(__xlC__)
+#define VIZZU_NO_INLINE __attribute__((noinline))
+#define VIZZU_FORCE_INLINE __attribute__((always_inline)) inline
+#else
+#define VIZZU_NO_INLINE
+#define VIZZU_FORCE_INLINE
+#endif
+
+#endif
+
+
 namespace Refl
 {
 
@@ -733,7 +758,7 @@ template <class T, class Visitor> struct Applier
 	             && std::is_invocable_v<Visitor &,
 	                 U &(*)(const T &),
 	                 const std::initializer_list<std::string_view> &>)
-	constexpr static __attribute__((always_inline)) auto apply(
+	constexpr static VIZZU_FORCE_INLINE auto apply(
 	    Visitor &v) noexcept
 	{
 		return v(FuncPtr<T, U, MemberFunctors...>,
@@ -746,14 +771,14 @@ template <class T, class Visitor> struct Applier
 	             && !std::is_invocable_v<Visitor &,
 	                 U &(*)(const T &),
 	                 const std::initializer_list<std::string_view> &>)
-	constexpr static __attribute__((always_inline)) auto apply(
+	constexpr static VIZZU_FORCE_INLINE auto apply(
 	    Visitor &v) noexcept
 	{
 		return v(FuncPtr<T, U, MemberFunctors...>);
 	}
 
 	template <class U, class... MemberFunctors>
-	constexpr static __attribute__((always_inline)) auto apply(
+	constexpr static VIZZU_FORCE_INLINE auto apply(
 	    [[maybe_unused]] Visitor &v) noexcept
 	{
 		static_assert(is_reflectable<U>, "Unable to run reflection");
@@ -834,7 +859,7 @@ struct GetterVisitor<Visitor,
 #endif
 
 template <class T, class Visitor>
-constexpr __attribute__((always_inline)) auto visit(Visitor &&visitor)
+constexpr VIZZU_FORCE_INLINE auto visit(Visitor &&visitor)
 {
 #ifndef __clang_analyzer__
 	return Functors::Applier<T, Visitor>::template apply<T>(visitor);

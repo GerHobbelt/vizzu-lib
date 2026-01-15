@@ -7,6 +7,7 @@
 #include <optional>
 #include <set>
 #include <span>
+#include <string>
 #include <string_view>
 #include <variant>
 
