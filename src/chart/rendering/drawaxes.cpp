@@ -28,7 +28,6 @@
 #include "chart/main/events.h"
 #include "chart/main/style.h"
 #include "chart/options/channel.h"
-#include "dataframe/old/types.h"
 
 #include "drawguides.h"
 #include "drawinterlacing.h"
@@ -138,7 +137,7 @@ const DrawAxes &&DrawAxes::init() &&
 		const auto &axis = plot->axises.at(axisIndex);
 
 		const static Gen::SplitAxis::Parts oneSized{
-		    {std::nullopt, Gen::SplitAxis::Part{}}};
+		    {{}, Gen::SplitAxis::Part{}}};
 		splits[axisIndex] =
 		    axis.parts.empty() ? oneSized : axis.parts;
 
@@ -591,8 +590,10 @@ void DrawAxes::drawDimensionLabel(Gen::AxisId axisIndex,
 		                    double plusWeight = 1.0)
 		    {
 			    if (!str.value) return;
+			    auto dimValues =
+			        Gen::DimensionAxis::mergedLabels(dimInfo.index);
 			    drawLabel.draw(canvas,
-			        dimInfo.index.value,
+			        dimValues,
 			        posDir,
 			        labelStyle,
 			        0,
@@ -601,9 +602,8 @@ void DrawAxes::drawDimensionLabel(Gen::AxisId axisIndex,
 			                str.weight,
 			                plusWeight)),
 			        *rootEvents.draw.plot.axis.label,
-			        Events::Targets::dimAxisLabel(
-			            dimInfo.index.column,
-			            dimInfo.index.value,
+			        Events::Targets::dimAxisLabel(dimInfo.index,
+			            dimValues,
 			            axisIndex));
 		    };
 

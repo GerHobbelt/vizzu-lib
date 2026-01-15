@@ -42,7 +42,7 @@ public:
 	{
 		struct DimLabel
 		{
-			const Data::SliceIndex &index;
+			const std::vector<Data::SliceIndex> &index;
 			const ::Anim::Interpolated<bool> &presented;
 			bool start;
 			bool end;
@@ -69,6 +69,8 @@ public:
 	        Gen::SplitAxis::Parts::const_iterator,
 	        std::ranges::subrange_kind::sized>>
 	    splits;
+	// Refl::EnumArray<Gen::AxisId, std::vector<Interval>>
+	// multiLabelAxis;
 
 	[[nodiscard]] auto getIntervals(Gen::AxisId axisIndex,
 	    const Math::Range<> &filter = {0.0, 1.0}) const
