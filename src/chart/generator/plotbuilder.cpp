@@ -103,7 +103,7 @@ bool PlotBuilder::needAxisDefaultSplit(AxisId axisIndex) const
 	if (channel.hasMeasure()) return false;
 	if (channel.dimensions().size() <= 1) return false;
 	if (plot->getOptions()->getChannels().axisPropsAt(axisIndex).sort
-	    != Sort::none)
+	    == Sort::byValue)
 		return false;
 
 	const auto &dimensionLabelLevelIndex =
@@ -416,8 +416,12 @@ void PlotBuilder::calcAxises(const Data::DataTable &dataTable,
 	    mainAxis,
 	    needAxisDefaultSplitMain);
 
-	auto mainBoundRect = plot->getMarkersBounds(mainAxis);
-	auto subBoundRect = plot->getMarkersBounds(!mainAxis);
+	auto mainBoundRect = needAxisDefaultSplitMain
+	                       ? Math::Range{0.0, 1.0}
+	                       : plot->getMarkersBounds(mainAxis);
+	auto subBoundRect = needAxisDefaultSplitSub
+	                      ? Math::Range{0.0, 1.0}
+	                      : plot->getMarkersBounds(!mainAxis);
 
 	plot->getOptions()->setAutoRange(
 	    !std::signbit(
@@ -433,12 +437,8 @@ void PlotBuilder::calcAxises(const Data::DataTable &dataTable,
 	    plot->getOptions()->subAxis().range.getRange(subBoundRect);
 
 	for (auto &&[axis, needRanges, boundSize] :
-	    {std::tuple{mainAxis,
-	         mainRanges.empty() && !needAxisDefaultSplitMain,
-	         mainBoundRect},
-	        {!mainAxis,
-	            subRanges.empty() && !needAxisDefaultSplitSub,
-	            subBoundRect}}) {
+	    {std::tuple{mainAxis, mainRanges.empty(), mainBoundRect},
+	        {!mainAxis, subRanges.empty(), subBoundRect}}) {
 		if (!needRanges) continue;
 
 		for (auto &marker : plot->markers) {
@@ -509,7 +509,8 @@ void PlotBuilder::calcLegendAndLabel(const Data::DataTable &dataTable)
 				        count,
 				        color,
 				        true,
-				        merge))
+				        merge,
+				        false))
 					++count;
 				calcLegend.dimension.hasMarker = true;
 			}
@@ -600,12 +601,26 @@ void PlotBuilder::calcAxis(const Data::DataTable &dataTable,
 			    axisProps.step.getValue()};
 	}
 	else {
-		for (auto merge = axisProps.sort == Sort::byLabel
-		               || (plot->getOptions()->dimLabelIndex(+type)
-		                       == std::vector{std::size_t{}}
-		                   && (axisProps.sort == Sort::none
-		                       || scale.dimensions().size() == 1));
-		     const auto &marker : plot->markers) {
+		auto &&labels = plot->getOptions()->dimLabelIndex(+type);
+		auto merge = axisProps.sort == Sort::byLabel
+		          || (std::ranges::starts_with(labels,
+		                  std::views::single(std::size_t{}))
+		              && (axisProps.sort == Sort::none
+		                  || scale.dimensions().size() == 1));
+		auto layer =
+		    merge
+		    && plot->getStyle()
+		               .plot.getAxis(type)
+		               .label.multiLevelAxis
+		           == Styles::AxisLabelParams::MultiLevelAxis::nested
+		    && plot->getStyle().plot.getAxis(type).label.position
+		           != Styles::AxisLabel::Position::axis
+		    && std::ranges::starts_with(labels,
+		        std::views::single(std::size_t{}));
+
+		merge &= layer || labels.size() == 1;
+
+		for (const auto &marker : plot->markers) {
 			if (!marker.enabled) continue;
 
 			const auto &id =
@@ -619,7 +634,8 @@ void PlotBuilder::calcAxis(const Data::DataTable &dataTable,
 				    {},
 				    {},
 				    false,
-				    merge);
+				    merge,
+				    layer);
 
 			axis.dimension.hasMarker = true;
 		}
@@ -743,10 +759,13 @@ PlotBuilder::addSeparation(const Buckets &buckets,
 			}
 		}
 
-	if (!isSplit)
-		std::ranges::stable_sort(res,
-		    std::less{},
-		    &BucketSeparationInfo::itemId);
+	if (!isSplit) {
+		if (axisProps.sort == Sort::none)
+			std::ranges::stable_sort(res,
+			    std::less{},
+			    &BucketSeparationInfo::itemId);
+		if (axisProps.reverse) std::ranges::reverse(res);
+	}
 
 	auto max = Math::Range<>{{}, {}};
 	auto maxRange = Math::Range<>{{}, {}};
@@ -790,6 +809,15 @@ PlotBuilder::addSeparation(const Buckets &buckets,
 		onMax += splitSpace;
 
 		if (!isSplit) maxRange.max += splitSpace;
+	}
+
+	if (!isSplit) {
+		if (axisProps.sort == Sort::byLabel)
+			std::ranges::stable_sort(res,
+			    std::less{},
+			    &BucketSeparationInfo::itemId);
+		else if (axisProps.reverse)
+			std::ranges::reverse(res);
 	}
 
 	for (auto &&bucket : buckets)

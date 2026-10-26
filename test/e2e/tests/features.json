@@ -40,8 +40,14 @@
 		"data_input/big_category_indexed": {
 			"refs": ["7d57280"]
 		},
-		"multilabel": {
-			"refs": ["9f0a44b"]
+		"multi_label/legend_color": {
+			"refs": ["6026882"]
+		},
+		"multi_label/x_axis": {
+			"refs": ["aace017"]
+		},
+		"multi_label/y_axis": {
+			"refs": ["de3f01c"]
 		}
 	}
 }
